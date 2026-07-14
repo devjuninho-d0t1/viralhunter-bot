@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { handleMessage } from "@/lib/commands";
+import { handleMessage, WELCOME } from "@/lib/commands";
 
 /**
  * Transporte: Telegram (fase de testes).
@@ -45,8 +45,18 @@ export async function POST(request: NextRequest) {
 
     const update = await request.json();
     const msg = update.message ?? update.channel_post;
-    const text: string | undefined = msg?.text ?? msg?.caption;
-    if (!msg || !text) return new Response("OK", { status: 200 });
+    if (!msg) return new Response("OK", { status: 200 });
+
+    // Boas-vindas: bot acabou de ser adicionado a um grupo
+    const botId = Number(process.env.TELEGRAM_BOT_TOKEN?.split(":")[0]);
+    const newMembers: { id: number }[] | undefined = msg.new_chat_members;
+    if (newMembers?.some((m) => m.id === botId)) {
+      await reply(msg.chat.id, WELCOME);
+      return new Response("OK", { status: 200 });
+    }
+
+    const text: string | undefined = msg.text ?? msg.caption;
+    if (!text) return new Response("OK", { status: 200 });
 
     const userName: string =
       msg.from?.username ?? msg.from?.first_name ?? "desconhecido";

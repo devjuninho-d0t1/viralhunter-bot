@@ -14,17 +14,49 @@ export interface IncomingMessage {
   userName: string;
 }
 
-const HELP = `📁 *B2B Minerador — comandos*
+export const WELCOME = `👋 *Olá! Eu sou o organizador de links do time.*
 
-Mandar link → cai na pasta *inbox*
-Mandar link com #pasta → cai na pasta (ex: \`https://... #ads\`)
+Meu trabalho é simples: você me manda links, eu guardo tudo organizado em pastas.
 
-/pastas — lista as pastas
-/criar <nome> — cria pasta
-/apagar <nome> — apaga pasta (e os links dela)
-/renomear <antigo> > <novo> — renomeia
-/links <pasta> — lista os links da pasta
-/ajuda — este menu`;
+*Pra começar agora:*
+📥 Cole qualquer link no chat → eu salvo na pasta *inbox*
+📁 Cole o link com *#nomedapasta* → eu salvo na pasta certa
+
+Exemplo:
+\`https://instagram.com/reel/abc #ads\`
+
+Digite /help pra ver o guia completo de comandos. 🚀`;
+
+const HELP = `📖 *Guia completo — passo a passo*
+
+*1️⃣ Salvar um link*
+É só colar no chat, sem comando nenhum.
+→ Vai pra pasta *inbox*.
+
+*2️⃣ Salvar direto numa pasta*
+Cole o link e adicione *#nome* na mensagem:
+\`https://... #ads\`
+→ Salvo em *ads*. Se a pasta não existir, eu crio na hora.
+
+*3️⃣ /criar [nome]* — cria uma pasta vazia
+Ex: \`/criar criativos\`
+
+*4️⃣ /pastas* — lista todas as pastas
+Mostra também quantos links tem em cada uma.
+
+*5️⃣ /links [pasta]* — mostra o que tem numa pasta
+Ex: \`/links ads\` → lista os 30 links mais recentes.
+
+*6️⃣ /renomear [antigo] > [novo]* — renomeia uma pasta
+Ex: \`/renomear ads > ads-frios\`
+Os links vão junto, nada se perde.
+
+*7️⃣ /apagar [nome]* — apaga a pasta E os links dela
+Ex: \`/apagar rascunho\`
+⚠️ Não tem desfazer. A *inbox* é protegida, não pode ser apagada.
+
+Mensagens sem link e sem comando eu ignoro — pode conversar à vontade. 😉
+/help — mostra este guia de novo`;
 
 export function extractUrl(text: string): string | null {
   const match = text.match(/https?:\/\/[^\s]+/);
@@ -56,8 +88,10 @@ export async function handleMessage(
     const command = cmd.toLowerCase().replace(/@\S+$/, ""); // tira @nomedobot
 
     switch (command) {
-      case "/ajuda":
       case "/start":
+        return WELCOME;
+
+      case "/ajuda":
       case "/help":
         return HELP;
 

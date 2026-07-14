@@ -99,7 +99,13 @@ export async function addLink(
 ): Promise<{ folder: Folder; linkId: number }> {
   let folder = await getFolder(folderName);
   if (!folder) {
-    folder = await createFolder(folderName, addedBy);
+    try {
+      folder = await createFolder(folderName, addedBy);
+    } catch {
+      // corrida: outro miner criou a mesma pasta no meio do caminho
+      folder = await getFolder(folderName);
+      if (!folder) throw new Error(`folder create failed: ${folderName}`);
+    }
   }
   const { data, error } = await db()
     .from("links")

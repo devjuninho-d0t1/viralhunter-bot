@@ -58,6 +58,13 @@ Ex: \`/apagar rascunho\`
 Mensagens sem link e sem comando eu ignoro — pode conversar à vontade. 😉
 /help — mostra este guia de novo`;
 
+const FOLDER_NAME_RE = /^[\p{L}\p{N}][\p{L}\p{N} ._-]{0,29}$/u;
+
+function invalidFolderName(name: string): string | null {
+  if (FOLDER_NAME_RE.test(name.trim())) return null;
+  return "Nome de pasta inválido. Use letras, números, espaço, ponto, hífen ou _ (máx. 30 caracteres).";
+}
+
 export function extractUrl(text: string): string | null {
   const match = text.match(/https?:\/\/[^\s]+/);
   return match ? match[0] : null;
@@ -106,6 +113,8 @@ export async function handleMessage(
 
       case "/criar": {
         if (!arg) return "Uso: /criar <nome da pasta>";
+        const invalid = invalidFolderName(arg);
+        if (invalid) return invalid;
         const existing = await getFolder(arg);
         if (existing) return `A pasta *${existing.name}* já existe.`;
         const folder = await createFolder(arg, msg.userName);
@@ -128,6 +137,8 @@ export async function handleMessage(
           return "Uso: /renomear <antigo> > <novo>";
         if (parts[0].trim().toLowerCase() === "inbox")
           return "A pasta *inbox* é padrão e não pode ser renomeada.";
+        const invalid = invalidFolderName(parts[1]);
+        if (invalid) return invalid;
         const ok = await renameFolder(parts[0], parts[1]);
         return ok
           ? `✏️ *${parts[0].trim().toLowerCase()}* → *${parts[1].trim().toLowerCase()}*`
@@ -140,10 +151,19 @@ export async function handleMessage(
         if (links === null)
           return `Pasta *${arg.toLowerCase()}* não encontrada. Veja /pastas.`;
         if (links.length === 0) return `Pasta *${arg.toLowerCase()}* está vazia.`;
-        return (
-          `🔗 *${arg.toLowerCase()}* (${links.length} mais recentes):\n` +
-          links.map((l) => `• ${l.url}`).join("\n")
-        );
+        // Telegram/WhatsApp limitam o tamanho da mensagem — corta antes de estourar
+        const lines: string[] = [];
+        let size = 0;
+        for (const l of links) {
+          const line = `• ${l.url}`;
+          if (size + line.length > 3000) {
+            lines.push(`… e mais ${links.length - lines.length} link(s).`);
+            break;
+          }
+          lines.push(line);
+          size += line.length + 1;
+        }
+        return `🔗 *${arg.toLowerCase()}* (${links.length} mais recentes):\n` + lines.join("\n");
       }
 
       default:

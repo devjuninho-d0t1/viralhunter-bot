@@ -7,6 +7,21 @@ import { handleMessage, WELCOME } from "@/lib/commands";
  * handleMessage() — o núcleo não muda.
  */
 
+/**
+ * O núcleo produz texto com *negrito* e `código` (formato nativo do
+ * WhatsApp). Pro Telegram convertemos pra HTML com escape — Markdown
+ * legacy dá 400 em `_`/`*` soltos (comuns em URLs do Instagram) e o
+ * bot ficaria mudo.
+ */
+function toTelegramHtml(text: string): string {
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\*([^*\n]+)\*/g, "<b>$1</b>")
+    .replace(/`([^`\n]+)`/g, "<code>$1</code>");
+}
+
 async function reply(
   chatId: number | string,
   text: string,
@@ -14,8 +29,8 @@ async function reply(
 ): Promise<void> {
   const body: Record<string, unknown> = {
     chat_id: chatId,
-    text,
-    parse_mode: "Markdown",
+    text: toTelegramHtml(text),
+    parse_mode: "HTML",
     disable_web_page_preview: true,
   };
   if (replyTo !== undefined) body.reply_to_message_id = replyTo;

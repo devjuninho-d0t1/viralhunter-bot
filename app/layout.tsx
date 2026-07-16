@@ -24,10 +24,8 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="pt-BR">
-      <body className={`${pixel.variable} ${mono.variable}`}>
-        {children}
-      </body>
+    <html lang="pt-BR" className={`${pixel.variable} ${mono.variable}`}>
+      <body>{children}</body>
     </html>
   );
 }

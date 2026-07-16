@@ -23,7 +23,7 @@ export default function LoginPage() {
         router.push("/painel");
         return;
       }
-      setError("senha incorreta. tenta de novo_");
+      setError("ACESSO NEGADO — senha incorreta_");
     } catch {
       setError("erro de conexão. tenta de novo_");
     } finally {
@@ -34,33 +34,38 @@ export default function LoginPage() {
   return (
     <main className="login-wrap">
       <div className="login-box">
-        <h1 className="pixel login-logo cursor-blink">VIRALHUNTER</h1>
-        <p className="login-sub">
-          terminal de garimpo — links minerados pelo time
-        </p>
-        <form className="card login-card" onSubmit={submit}>
-          <label className="login-label" htmlFor="pw">
-            SENHA DO TIME
-          </label>
-          <input
-            id="pw"
-            type="password"
-            className="input"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            autoFocus
-          />
-          <p className="login-err">{error}</p>
-          <button
-            type="submit"
-            className="btn btn-volt"
-            disabled={loading || !password}
-            style={{ justifyContent: "center" }}
-          >
-            {loading ? "verificando..." : "entrar →"}
-          </button>
-        </form>
+        <div className="login-frame">
+          <h1 className="pixel login-logo cursor-blink">VIRALHUNTER</h1>
+          <p className="login-sub">
+            terminal de operações do garimpo · acesso restrito
+          </p>
+          <form className="login-form" onSubmit={submit}>
+            <label className="syslabel" htmlFor="pw">
+              CREDENCIAL DO TIME
+            </label>
+            <input
+              id="pw"
+              type="password"
+              className="input"
+              placeholder="••••••••"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoFocus
+            />
+            <p className="login-err">{error}</p>
+            <button
+              type="submit"
+              className="btn btn-volt"
+              disabled={loading || !password}
+            >
+              {loading ? "VERIFICANDO…" : "INICIAR SESSÃO →"}
+            </button>
+          </form>
+          <div className="login-foot">
+            <span>SYS.VIRALHUNTER</span>
+            <span>v2.0</span>
+          </div>
+        </div>
       </div>
     </main>
   );

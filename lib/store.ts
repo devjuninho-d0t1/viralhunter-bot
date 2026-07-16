@@ -121,6 +121,89 @@ export async function addLink(
   return { folder, linkId: data.id };
 }
 
+// ── Plataforma web ──
+
+export interface LinkRow extends Link {
+  folder: string;
+}
+
+export async function listAllData(): Promise<{
+  folders: { id: number; name: string; count: number }[];
+  links: LinkRow[];
+}> {
+  const { data: folders, error: fErr } = await db()
+    .from("folders")
+    .select("id, name")
+    .order("name");
+  if (fErr) throw fErr;
+  const { data: links, error: lErr } = await db()
+    .from("links")
+    .select("id, url, folder_id, added_by, created_at")
+    .order("created_at", { ascending: false })
+    .limit(500);
+  if (lErr) throw lErr;
+  const nameById = new Map((folders ?? []).map((f) => [f.id, f.name]));
+  const counts = new Map<number, number>();
+  for (const l of links ?? []) {
+    counts.set(l.folder_id, (counts.get(l.folder_id) ?? 0) + 1);
+  }
+  return {
+    folders: (folders ?? []).map((f) => ({
+      id: f.id,
+      name: f.name,
+      count: counts.get(f.id) ?? 0,
+    })),
+    links: (links ?? []).map((l) => ({
+      ...l,
+      folder: nameById.get(l.folder_id) ?? "?",
+    })),
+  };
+}
+
+export async function getFolderById(
+  id: number,
+): Promise<Folder | null> {
+  const { data } = await db()
+    .from("folders")
+    .select("id, name")
+    .eq("id", id)
+    .maybeSingle();
+  return data;
+}
+
+export async function renameFolderById(
+  id: number,
+  newName: string,
+): Promise<boolean> {
+  const { error } = await db()
+    .from("folders")
+    .update({ name: normalize(newName) })
+    .eq("id", id);
+  if (error) throw error;
+  return true;
+}
+
+export async function deleteFolderById(id: number): Promise<void> {
+  const { error } = await db().from("folders").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function deleteLink(id: number): Promise<void> {
+  const { error } = await db().from("links").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function moveLink(
+  id: number,
+  folderId: number,
+): Promise<void> {
+  const { error } = await db()
+    .from("links")
+    .update({ folder_id: folderId })
+    .eq("id", id);
+  if (error) throw error;
+}
+
 export async function listLinks(folderName: string): Promise<Link[] | null> {
   const folder = await getFolder(folderName);
   if (!folder) return null;

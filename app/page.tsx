@@ -1,66 +1,67 @@
-import Image from "next/image";
-import styles from "./page.module.css";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+export default function LoginPage() {
+  const router = useRouter();
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/platform/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (res.ok) {
+        router.push("/painel");
+        return;
+      }
+      setError("senha incorreta. tenta de novo_");
+    } catch {
+      setError("erro de conexão. tenta de novo_");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <Image
-          className={styles.logo}
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className={styles.intro}>
-          <h1>To get started, edit the page.tsx file.</h1>
-          <p>
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+    <main className="login-wrap">
+      <div className="login-box">
+        <h1 className="pixel login-logo cursor-blink">VIRALHUNTER</h1>
+        <p className="login-sub">
+          terminal de garimpo — links minerados pelo time
+        </p>
+        <form className="card login-card" onSubmit={submit}>
+          <label className="login-label" htmlFor="pw">
+            SENHA DO TIME
+          </label>
+          <input
+            id="pw"
+            type="password"
+            className="input"
+            placeholder="••••••••"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoFocus
+          />
+          <p className="login-err">{error}</p>
+          <button
+            type="submit"
+            className="btn btn-volt"
+            disabled={loading || !password}
+            style={{ justifyContent: "center" }}
           >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className={styles.secondary}
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+            {loading ? "verificando..." : "entrar →"}
+          </button>
+        </form>
+      </div>
+    </main>
   );
 }

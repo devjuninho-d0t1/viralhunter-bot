@@ -579,6 +579,51 @@ button {
   background: #00000014;
 }
 
+/* confirmação inline de exclusão (2 cliques) */
+
+.icon-btn.armed,
+.icon-btn.armed:hover,
+.tab .icon-btn.armed,
+.tab .icon-btn.armed:hover {
+  color: #fff;
+  background: var(--danger);
+  box-shadow: 0 0 0 1px var(--danger), 0 0 12px var(--danger-soft);
+  animation: armed-pulse 1s var(--ease) infinite;
+}
+
+@keyframes armed-pulse {
+  50% {
+    box-shadow: 0 0 0 1px var(--danger), 0 0 18px #ef444466;
+  }
+}
+
+/* renomear pasta inline */
+
+.tab-edit {
+  font: inherit;
+  font-weight: 700;
+  color: inherit;
+  background: #00000026;
+  border: none;
+  border-bottom: 1px solid #03130a80;
+  border-radius: 4px 4px 0 0;
+  padding: 1px 4px;
+  outline: none;
+  min-width: 60px;
+  max-width: 150px;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
+}
+
+.tab-edit:focus {
+  background: #00000033;
+  border-bottom-color: #03130a;
+}
+
+.tab-edit::selection {
+  background: #03130a;
+  color: var(--volt);
+}
+
 .tab-new {
   display: inline-flex;
   align-items: center;
@@ -961,7 +1006,8 @@ button {
   }
 
   .dot-live,
-  .cursor-blink::after {
+  .cursor-blink::after,
+  .icon-btn.armed {
     animation: none;
   }
 

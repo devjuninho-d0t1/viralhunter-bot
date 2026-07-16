@@ -106,8 +106,33 @@ export default function Painel() {
   const [loaded, setLoaded] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [freshIds, setFreshIds] = useState<Set<number>>(new Set());
+  // confirmação inline de exclusão: chave "folder-3" | "link-42"
+  const [armed, setArmed] = useState<string | null>(null);
+  // renomear pasta inline
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastSeq = useRef(0);
   const knownIds = useRef<Set<number> | null>(null);
+
+  const arm = useCallback((key: string) => {
+    if (armTimer.current) clearTimeout(armTimer.current);
+    setArmed(key);
+    armTimer.current = setTimeout(() => setArmed(null), 3000);
+  }, []);
+
+  const disarm = useCallback(() => {
+    if (armTimer.current) clearTimeout(armTimer.current);
+    armTimer.current = null;
+    setArmed(null);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (armTimer.current) clearTimeout(armTimer.current);
+    },
+    [],
+  );
 
   const toast = useCallback((kind: Toast["kind"], text: string) => {
     const id = ++toastSeq.current;
@@ -192,27 +217,33 @@ export default function Painel() {
     );
   }
 
-  function renameFolder(f: FolderItem) {
-    const name = window.prompt(`Renomear "${f.name}" para:`, f.name);
-    if (!name || name.trim() === f.name) return;
+  function startRename(f: FolderItem) {
+    setEditingId(f.id);
+    setEditName(f.name);
+  }
+
+  function commitRename(f: FolderItem) {
+    const name = editName.trim();
+    setEditingId(null);
+    if (!name || name === f.name) return;
     act(
       "/api/platform/folders",
       {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: f.id, name: name.trim() }),
+        body: JSON.stringify({ id: f.id, name }),
       },
-      `renomeada para "${name.trim().toLowerCase()}"`,
+      `renomeada para "${name.toLowerCase()}"`,
     );
   }
 
   function deleteFolder(f: FolderItem) {
-    if (
-      !window.confirm(
-        `Apagar a pasta "${f.name}" e os ${f.count} link(s) dela? Não tem desfazer.`,
-      )
-    )
+    const key = `folder-${f.id}`;
+    if (armed !== key) {
+      arm(key);
       return;
+    }
+    disarm();
     if (selected === f.id) setSelected("all");
     act(
       `/api/platform/folders?id=${f.id}`,
@@ -222,7 +253,12 @@ export default function Painel() {
   }
 
   function deleteLinkAction(l: LinkItem) {
-    if (!window.confirm("Apagar este link? Não tem desfazer.")) return;
+    const key = `link-${l.id}`;
+    if (armed !== key) {
+      arm(key);
+      return;
+    }
+    disarm();
     act(
       `/api/platform/links?id=${l.id}`,
       { method: "DELETE" },
@@ -415,7 +451,28 @@ export default function Painel() {
                   className={`tab ${selected === f.id ? "active" : ""}`}
                   onClick={() => setSelected(f.id)}
                 >
-                  <span className="tab-name">#{f.name}</span>
+                  {editingId === f.id ? (
+                    <input
+                      className="tab-edit"
+                      value={editName}
+                      autoFocus
+                      maxLength={30}
+                      size={Math.max(editName.length + 1, 6)}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          commitRename(f);
+                        } else if (e.key === "Escape") {
+                          setEditingId(null);
+                        }
+                      }}
+                      onBlur={() => setEditingId(null)}
+                    />
+                  ) : (
+                    <span className="tab-name">#{f.name}</span>
+                  )}
                   <span className="tab-n">{f.count}</span>
                   {selected === f.id && f.name !== "inbox" && (
                     <>
@@ -425,15 +482,26 @@ export default function Painel() {
                         title="renomear"
                         onClick={(e) => {
                           e.stopPropagation();
-                          renameFolder(f);
+                          startRename(f);
                         }}
                       >
                         ✎
                       </span>
                       <span
                         role="button"
-                        className="icon-btn"
-                        title="apagar"
+                        className={`icon-btn ${
+                          armed === `folder-${f.id}` ? "armed" : ""
+                        }`}
+                        title={
+                          armed === `folder-${f.id}`
+                            ? `confirmar? apaga ${f.count} link(s) junto`
+                            : "apagar"
+                        }
+                        aria-label={
+                          armed === `folder-${f.id}`
+                            ? "confirmar exclusão"
+                            : "apagar pasta"
+                        }
                         onClick={(e) => {
                           e.stopPropagation();
                           deleteFolder(f);
@@ -528,8 +596,19 @@ export default function Painel() {
                           ))}
                         </select>
                         <button
-                          className="icon-btn danger"
-                          title="apagar link"
+                          className={`icon-btn danger ${
+                            armed === `link-${l.id}` ? "armed" : ""
+                          }`}
+                          title={
+                            armed === `link-${l.id}`
+                              ? "confirmar?"
+                              : "apagar link"
+                          }
+                          aria-label={
+                            armed === `link-${l.id}`
+                              ? "confirmar exclusão"
+                              : "apagar link"
+                          }
                           onClick={() => deleteLinkAction(l)}
                         >
                           ✕

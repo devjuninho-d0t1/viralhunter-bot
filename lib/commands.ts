@@ -25,6 +25,9 @@ Meu trabalho é simples: você me manda links, eu guardo tudo organizado em past
 Exemplo:
 \`https://instagram.com/reel/abc #ads\`
 
+📊 Tudo que entra aqui aparece ao vivo no *painel do time*:
+https://b2b-minerador.vercel.app
+
 Digite /help pra ver o guia completo de comandos. 🚀`;
 
 const HELP = `📖 *Guia completo — passo a passo*
@@ -54,6 +57,11 @@ Os links vão junto, nada se perde.
 *7️⃣ /apagar [nome]* — apaga a pasta E os links dela
 Ex: \`/apagar rascunho\`
 ⚠️ Não tem desfazer. A *inbox* é protegida, não pode ser apagada.
+
+*📊 Painel ao vivo*
+Tudo que o time salva aqui fica organizado em tempo real no painel:
+https://b2b-minerador.vercel.app
+_A senha está com o time._
 
 Mensagens sem link e sem comando eu ignoro — pode conversar à vontade. 😉
 /help — mostra este guia de novo`;

@@ -19,7 +19,12 @@ export function parseZapiPayload(
 ): ZapiParsed | null {
   if (!body) return null;
   if (body.type !== "ReceivedCallback") return null; // status/entrega/etc
-  if (body.fromMe === true) return null; // eco das próprias respostas
+  // Anti-loop: ignora o que foi enviado PELA API (respostas do próprio bot).
+  // fromMe sozinho não serve: se o número do bot for de uma pessoa (ex: teste
+  // com número pessoal), as mensagens digitadas por ela têm fromMe=true mas
+  // fromApi=false — e devem ser processadas normalmente.
+  if (body.fromApi === true) return null;
+  if (body.fromMe === true && body.fromApi === undefined) return null; // payload antigo sem fromApi: volta ao comportamento seguro
   const text = (body.text as { message?: string } | undefined)?.message;
   const chatId = body.phone as string | undefined; // grupo ou 1:1
   if (!text || !chatId) return null;

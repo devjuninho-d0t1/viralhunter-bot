@@ -33,7 +33,9 @@
   --ease: cubic-bezier(0.16, 1, 0.3, 1);
   --z-sticky: 10;
   --z-ticker: 20;
-  --z-toast: 30;
+  --z-modal-backdrop: 40;
+  --z-modal: 41;
+  --z-toast: 50;
 }
 
 * {
@@ -1167,6 +1169,103 @@ button {
   content: "▸▸";
   color: var(--volt);
   font-size: 9px;
+}
+
+/* ══ MODAL DE CONFIRMAÇÃO ══ */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-modal-backdrop);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: #000000cc;
+  backdrop-filter: blur(4px);
+  animation: backdrop-in 0.16s var(--ease) both;
+}
+
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.modal {
+  position: relative;
+  z-index: var(--z-modal);
+  width: 100%;
+  max-width: 380px;
+  border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  background: var(--panel);
+  padding: 28px 26px 22px;
+  text-align: center;
+  box-shadow: 0 24px 80px #000000cc;
+  animation: modal-in 0.2s var(--ease) both;
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.97);
+  }
+}
+
+.modal-icon {
+  width: 46px;
+  height: 46px;
+  margin: 0 auto 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid #ef444440;
+}
+
+.modal-icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.modal-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.modal-note {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  margin-bottom: 22px;
+}
+
+.modal-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.modal-actions .btn {
+  justify-content: center;
+  padding: 11px;
+  font-size: 13px;
+}
+
+.btn-danger-solid {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+  font-weight: 700;
+}
+
+.btn-danger-solid:hover {
+  background: #f25555;
+  border-color: #f25555;
 }
 
 /* ══ TOASTS ══ */

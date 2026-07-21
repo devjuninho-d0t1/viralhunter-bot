@@ -98,6 +98,34 @@ function Clock() {
 
 const DAY_LABELS = ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"];
 
+interface ConfirmTarget {
+  kind: "folder" | "link";
+  id: number;
+  title: string;
+  note?: string;
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 6h18" />
+      <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+      <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+      <path d="M10 11v6M14 11v6" />
+    </svg>
+  );
+}
+
 export default function Painel() {
   const router = useRouter();
   const [folders, setFolders] = useState<FolderItem[]>([]);
@@ -109,34 +137,16 @@ export default function Painel() {
   const [loaded, setLoaded] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [freshIds, setFreshIds] = useState<Set<number>>(new Set());
-  // confirmação inline de exclusão: chave "folder-3" | "link-42"
-  const [armed, setArmed] = useState<string | null>(null);
+  // confirmação de exclusão via modal central
+  const [confirmTarget, setConfirmTarget] = useState<ConfirmTarget | null>(
+    null,
+  );
   // renomear pasta inline
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
-  const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastSeq = useRef(0);
   const knownIds = useRef<Set<number> | null>(null);
   const thumbRequested = useRef<Set<number>>(new Set());
-
-  const arm = useCallback((key: string) => {
-    if (armTimer.current) clearTimeout(armTimer.current);
-    setArmed(key);
-    armTimer.current = setTimeout(() => setArmed(null), 3000);
-  }, []);
-
-  const disarm = useCallback(() => {
-    if (armTimer.current) clearTimeout(armTimer.current);
-    armTimer.current = null;
-    setArmed(null);
-  }, []);
-
-  useEffect(
-    () => () => {
-      if (armTimer.current) clearTimeout(armTimer.current);
-    },
-    [],
-  );
 
   const toast = useCallback((kind: Toast["kind"], text: string) => {
     const id = ++toastSeq.current;
@@ -185,6 +195,16 @@ export default function Painel() {
     const t = setInterval(load, 5000);
     return () => clearInterval(t);
   }, [load]);
+
+  // Esc fecha o modal de confirmação
+  useEffect(() => {
+    if (!confirmTarget) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setConfirmTarget(null);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [confirmTarget]);
 
   async function act(
     input: RequestInfo,
@@ -241,30 +261,39 @@ export default function Painel() {
     );
   }
 
-  function deleteFolder(f: FolderItem) {
-    const key = `folder-${f.id}`;
-    if (armed !== key) {
-      arm(key);
-      return;
-    }
-    disarm();
-    if (selected === f.id) setSelected("all");
-    act(
-      `/api/platform/folders?id=${f.id}`,
-      { method: "DELETE" },
-      `pasta "${f.name}" apagada`,
-    );
+  function askDeleteFolder(f: FolderItem) {
+    setConfirmTarget({
+      kind: "folder",
+      id: f.id,
+      title: `Apagar a pasta "${f.name}"?`,
+      note: `Os ${f.count} link(s) dentro dela vão junto. Não dá pra desfazer.`,
+    });
   }
 
-  function deleteLinkAction(l: LinkItem) {
-    const key = `link-${l.id}`;
-    if (armed !== key) {
-      arm(key);
+  function askDeleteLink(l: LinkItem) {
+    setConfirmTarget({
+      kind: "link",
+      id: l.id,
+      title: "Apagar este link?",
+      note: "Ele sai da vitrine e do banco. Não dá pra desfazer.",
+    });
+  }
+
+  function confirmDelete() {
+    const t = confirmTarget;
+    if (!t) return;
+    setConfirmTarget(null);
+    if (t.kind === "folder") {
+      if (selected === t.id) setSelected("all");
+      act(
+        `/api/platform/folders?id=${t.id}`,
+        { method: "DELETE" },
+        "pasta apagada",
+      );
       return;
     }
-    disarm();
     act(
-      `/api/platform/links?id=${l.id}`,
+      `/api/platform/links?id=${t.id}`,
       { method: "DELETE" },
       "link apagado",
     );
@@ -543,25 +572,15 @@ export default function Painel() {
                       </span>
                       <span
                         role="button"
-                        className={`icon-btn ${
-                          armed === `folder-${f.id}` ? "armed" : ""
-                        }`}
-                        title={
-                          armed === `folder-${f.id}`
-                            ? `confirmar? apaga ${f.count} link(s) junto`
-                            : "apagar"
-                        }
-                        aria-label={
-                          armed === `folder-${f.id}`
-                            ? "confirmar exclusão"
-                            : "apagar pasta"
-                        }
+                        className="icon-btn"
+                        title="apagar pasta"
+                        aria-label="apagar pasta"
                         onClick={(e) => {
                           e.stopPropagation();
-                          deleteFolder(f);
+                          askDeleteFolder(f);
                         }}
                       >
-                        ✕
+                        <TrashIcon />
                       </span>
                     </>
                   )}
@@ -690,18 +709,15 @@ export default function Painel() {
                           ))}
                         </select>
                         <button
-                          className={`icon-btn danger ${
-                            armed === `link-${l.id}` ? "armed" : ""
-                          }`}
-                          title={
-                            armed === `link-${l.id}` ? "confirmar?" : "apagar"
-                          }
+                          className="icon-btn danger"
+                          title="apagar"
+                          aria-label="apagar link"
                           onClick={(e) => {
                             e.preventDefault();
-                            deleteLinkAction(l);
+                            askDeleteLink(l);
                           }}
                         >
-                          ✕
+                          <TrashIcon />
                         </button>
                       </div>
                     </a>
@@ -749,22 +765,12 @@ export default function Painel() {
                           ))}
                         </select>
                         <button
-                          className={`icon-btn danger ${
-                            armed === `link-${l.id}` ? "armed" : ""
-                          }`}
-                          title={
-                            armed === `link-${l.id}`
-                              ? "confirmar?"
-                              : "apagar link"
-                          }
-                          aria-label={
-                            armed === `link-${l.id}`
-                              ? "confirmar exclusão"
-                              : "apagar link"
-                          }
-                          onClick={() => deleteLinkAction(l)}
+                          className="icon-btn danger"
+                          title="apagar link"
+                          aria-label="apagar link"
+                          onClick={() => askDeleteLink(l)}
                         >
-                          ✕
+                          <TrashIcon />
                         </button>
                       </div>
                     </div>
@@ -793,6 +799,40 @@ export default function Painel() {
           )}
         </div>
       </footer>
+
+      {confirmTarget && (
+        <div
+          className="modal-backdrop"
+          onClick={() => setConfirmTarget(null)}
+        >
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="modal-icon">
+              <TrashIcon />
+            </div>
+            <h3 className="modal-title">{confirmTarget.title}</h3>
+            {confirmTarget.note && (
+              <p className="modal-note">{confirmTarget.note}</p>
+            )}
+            <div className="modal-actions">
+              <button
+                className="btn"
+                onClick={() => setConfirmTarget(null)}
+                autoFocus
+              >
+                cancelar
+              </button>
+              <button className="btn btn-danger-solid" onClick={confirmDelete}>
+                apagar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="toasts">
         {toasts.map((t) => (

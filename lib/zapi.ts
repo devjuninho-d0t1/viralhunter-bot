@@ -12,6 +12,7 @@ export interface ZapiParsed {
   text: string;
   chatId: string;
   userName: string;
+  messageId: string | null;
 }
 
 export function parseZapiPayload(
@@ -32,7 +33,8 @@ export function parseZapiPayload(
     (body.senderName as string | undefined) ??
     (body.participantPhone as string | undefined) ??
     chatId;
-  return { text, chatId, userName };
+  const messageId = (body.messageId as string | undefined) ?? null;
+  return { text, chatId, userName, messageId };
 }
 
 export async function sendWhatsApp(
@@ -65,5 +67,37 @@ export async function sendWhatsApp(
     }
   } catch (err) {
     console.error("zapi send-text error", err);
+  }
+}
+
+/** Reage a uma mensagem com um emoji (ex: ⛏️ = "minerado e salvo"). */
+export async function sendReaction(
+  phone: string,
+  messageId: string,
+  reaction: string,
+): Promise<void> {
+  const { ZAPI_INSTANCE_ID, ZAPI_TOKEN, ZAPI_CLIENT_TOKEN } = process.env;
+  if (!ZAPI_INSTANCE_ID || !ZAPI_TOKEN) return;
+  try {
+    const res = await fetch(
+      `https://api.z-api.io/instances/${ZAPI_INSTANCE_ID}/token/${ZAPI_TOKEN}/send-message-reaction`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(ZAPI_CLIENT_TOKEN ? { "Client-Token": ZAPI_CLIENT_TOKEN } : {}),
+        },
+        body: JSON.stringify({ phone, messageId, reaction }),
+      },
+    );
+    if (!res.ok) {
+      console.error(
+        "zapi send-reaction failed",
+        res.status,
+        await res.text().catch(() => ""),
+      );
+    }
+  } catch (err) {
+    console.error("zapi send-reaction error", err);
   }
 }

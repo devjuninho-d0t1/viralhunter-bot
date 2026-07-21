@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { handleMessage } from "@/lib/commands";
-import { parseZapiPayload, sendWhatsApp } from "@/lib/zapi";
+import { parseZapiPayload, sendWhatsApp, sendReaction } from "@/lib/zapi";
 
 /**
  * Transporte: WhatsApp via Z-API — PRONTO, só preencher as chaves.
@@ -36,6 +36,13 @@ export async function POST(request: NextRequest) {
       text: parsed.text,
       userName: parsed.userName,
     });
+
+    // Link minerado (resposta "📥 Salvo em...") → reage com picareta na
+    // mensagem original, sinalizando "minerado e salvo na plataforma".
+    if (answer?.startsWith("📥") && parsed.messageId) {
+      await sendReaction(parsed.chatId, parsed.messageId, "⛏️");
+    }
+
     if (answer) {
       // *negrito* do núcleo renderiza nativamente no WhatsApp
       await sendWhatsApp(parsed.chatId, answer);

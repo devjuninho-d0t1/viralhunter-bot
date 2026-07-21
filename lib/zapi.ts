@@ -80,7 +80,7 @@ export async function sendReaction(
   if (!ZAPI_INSTANCE_ID || !ZAPI_TOKEN) return;
   try {
     const res = await fetch(
-      `https://api.z-api.io/instances/${ZAPI_INSTANCE_ID}/token/${ZAPI_TOKEN}/send-message-reaction`,
+      `https://api.z-api.io/instances/${ZAPI_INSTANCE_ID}/token/${ZAPI_TOKEN}/send-reaction`,
       {
         method: "POST",
         headers: {

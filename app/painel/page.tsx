@@ -22,6 +22,8 @@ interface LinkItem {
   folder: string;
   added_by: string | null;
   created_at: string;
+  thumbnail_url: string | null;
+  thumbnail_status: string | null;
 }
 
 interface Toast {
@@ -101,6 +103,7 @@ export default function Painel() {
   const [folders, setFolders] = useState<FolderItem[]>([]);
   const [links, setLinks] = useState<LinkItem[]>([]);
   const [selected, setSelected] = useState<number | "all">("all");
+  const [view, setView] = useState<"lista" | "vitrine">("vitrine");
   const [search, setSearch] = useState("");
   const [newFolder, setNewFolder] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -114,6 +117,7 @@ export default function Painel() {
   const armTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const toastSeq = useRef(0);
   const knownIds = useRef<Set<number> | null>(null);
+  const thumbRequested = useRef<Set<number>>(new Set());
 
   const arm = useCallback((key: string) => {
     if (armTimer.current) clearTimeout(armTimer.current);
@@ -300,6 +304,56 @@ export default function Painel() {
       );
     return list;
   }, [links, selected, search]);
+
+  // Resolve capas dos links visíveis ainda pendentes (concorrência 2),
+  // só quando a vitrine está aberta — evita gastar chamadas à toa.
+  useEffect(() => {
+    if (view !== "vitrine" || !loaded) return;
+    const pending = visible.filter(
+      (l) =>
+        (l.thumbnail_status ?? "pending") === "pending" &&
+        !thumbRequested.current.has(l.id),
+    );
+    if (pending.length === 0) return;
+
+    let cancelled = false;
+    const queue = [...pending];
+
+    async function worker() {
+      while (queue.length && !cancelled) {
+        const l = queue.shift()!;
+        thumbRequested.current.add(l.id);
+        try {
+          const res = await fetch("/api/platform/thumbnail", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ linkId: l.id }),
+          });
+          const j = await res.json();
+          if (j.ok && !cancelled) {
+            setLinks((prev) =>
+              prev.map((x) =>
+                x.id === l.id
+                  ? {
+                      ...x,
+                      thumbnail_url: j.thumbnailUrl,
+                      thumbnail_status: j.status,
+                    }
+                  : x,
+              ),
+            );
+          }
+        } catch {
+          /* tenta de novo no próximo ciclo se a ref for limpa */
+        }
+      }
+    }
+
+    void Promise.all([worker(), worker()]);
+    return () => {
+      cancelled = true;
+    };
+  }, [view, loaded, visible]);
 
   const todayCount = useMemo(() => {
     const start = new Date();
@@ -536,6 +590,22 @@ export default function Painel() {
               <span className="stage-count">
                 {visible.length} registro(s)
               </span>
+              <div className="viewtoggle">
+                <button
+                  className={view === "vitrine" ? "active" : ""}
+                  onClick={() => setView("vitrine")}
+                  title="vitrine com preview"
+                >
+                  ▦ vitrine
+                </button>
+                <button
+                  className={view === "lista" ? "active" : ""}
+                  onClick={() => setView("lista")}
+                  title="lista compacta"
+                >
+                  ☰ lista
+                </button>
+              </div>
               <input
                 className="input stage-search"
                 placeholder="buscar url, @minerador, pasta_"
@@ -544,20 +614,103 @@ export default function Painel() {
               />
             </div>
 
-            <div className="feed">
-              {visible.length === 0 ? (
-                <div className="empty">
-                  <div className="empty-title">SETOR VAZIO</div>
-                  <p>
-                    manda um link no grupo do bot que ele aparece aqui
-                    ao vivo
-                    <br />
-                    usa <code>#pasta</code> na mensagem pra cair direto
-                    no lugar certo_
-                  </p>
-                </div>
-              ) : (
-                visible.map((l) => {
+            {visible.length === 0 ? (
+              <div className="empty">
+                <div className="empty-title">SETOR VAZIO</div>
+                <p>
+                  manda um link no grupo do bot que ele aparece aqui
+                  ao vivo
+                  <br />
+                  usa <code>#pasta</code> na mensagem pra cair direto
+                  no lugar certo_
+                </p>
+              </div>
+            ) : view === "vitrine" ? (
+              <div className="vitrine">
+                {visible.map((l) => {
+                  const p = platformOf(l.url);
+                  const st = l.thumbnail_status ?? "pending";
+                  return (
+                    <a
+                      key={l.id}
+                      className={`vcard ${freshIds.has(l.id) ? "fresh" : ""}`}
+                      href={l.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <div className="vcard-frame">
+                        {st === "ok" && l.thumbnail_url ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            className="vcard-img"
+                            src={l.thumbnail_url}
+                            alt=""
+                            loading="lazy"
+                          />
+                        ) : st === "failed" ? (
+                          <div className={`vcard-fallback ${p.cls}`}>
+                            <span className="vcard-plat">{p.label}</span>
+                            <span className="vcard-noprev">sem preview</span>
+                          </div>
+                        ) : (
+                          <div className="vcard-loading">
+                            <span className="vcard-plat">{p.label}</span>
+                            <span className="vcard-dots">carregando…</span>
+                          </div>
+                        )}
+                        <span className={`vcard-badge ${p.cls}`}>
+                          {p.label}
+                        </span>
+                        <span className="vcard-play">▶</span>
+                        <div className="vcard-info">
+                          <span className="vcard-folder">#{l.folder}</span>
+                          <span className="vcard-sub">
+                            {l.added_by ? `@${l.added_by} · ` : ""}
+                            {timeAgo(l.created_at)}
+                          </span>
+                        </div>
+                      </div>
+                      <div
+                        className="vcard-acts"
+                        onClick={(e) => e.preventDefault()}
+                      >
+                        <select
+                          className="select"
+                          value={l.folder_id}
+                          onClick={(e) => e.stopPropagation()}
+                          onChange={(e) =>
+                            moveLinkAction(l, Number(e.target.value))
+                          }
+                          title="mover pra outra pasta"
+                        >
+                          {folders.map((f) => (
+                            <option key={f.id} value={f.id}>
+                              → {f.name}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          className={`icon-btn danger ${
+                            armed === `link-${l.id}` ? "armed" : ""
+                          }`}
+                          title={
+                            armed === `link-${l.id}` ? "confirmar?" : "apagar"
+                          }
+                          onClick={(e) => {
+                            e.preventDefault();
+                            deleteLinkAction(l);
+                          }}
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    </a>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="feed">
+                {visible.map((l) => {
                   const p = platformOf(l.url);
                   return (
                     <div
@@ -616,9 +769,9 @@ export default function Painel() {
                       </div>
                     </div>
                   );
-                })
-              )}
-            </div>
+                })}
+              </div>
+            )}
           </main>
         </div>
       )}

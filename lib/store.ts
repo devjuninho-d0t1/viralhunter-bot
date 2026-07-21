@@ -22,6 +22,8 @@ export interface Link {
   folder_id: number;
   added_by: string | null;
   created_at: string;
+  thumbnail_url: string | null;
+  thumbnail_status: string | null;
 }
 
 function normalize(name: string): string {
@@ -136,16 +138,47 @@ export async function listAllData(): Promise<{
     .select("id, name")
     .order("name");
   if (fErr) throw fErr;
-  const { data: links, error: lErr } = await db()
+  let links: Record<string, unknown>[] | null = null;
+  const withThumbs = await db()
     .from("links")
-    .select("id, url, folder_id, added_by, created_at")
+    .select(
+      "id, url, folder_id, added_by, created_at, thumbnail_url, thumbnail_status",
+    )
     .order("created_at", { ascending: false })
     .limit(500);
-  if (lErr) throw lErr;
+  if (withThumbs.error) {
+    // colunas de thumbnail ainda não migradas → cai pro básico sem quebrar
+    if (withThumbs.error.code === "42703") {
+      const base = await db()
+        .from("links")
+        .select("id, url, folder_id, added_by, created_at")
+        .order("created_at", { ascending: false })
+        .limit(500);
+      if (base.error) throw base.error;
+      links = base.data;
+    } else {
+      throw withThumbs.error;
+    }
+  } else {
+    links = withThumbs.data;
+  }
   const nameById = new Map((folders ?? []).map((f) => [f.id, f.name]));
+  const rows: LinkRow[] = (links ?? []).map((l) => {
+    const folderId = l.folder_id as number;
+    return {
+      id: l.id as number,
+      url: l.url as string,
+      folder_id: folderId,
+      added_by: (l.added_by as string | null) ?? null,
+      created_at: l.created_at as string,
+      thumbnail_url: (l.thumbnail_url as string | null) ?? null,
+      thumbnail_status: (l.thumbnail_status as string | null) ?? null,
+      folder: nameById.get(folderId) ?? "?",
+    };
+  });
   const counts = new Map<number, number>();
-  for (const l of links ?? []) {
-    counts.set(l.folder_id, (counts.get(l.folder_id) ?? 0) + 1);
+  for (const r of rows) {
+    counts.set(r.folder_id, (counts.get(r.folder_id) ?? 0) + 1);
   }
   return {
     folders: (folders ?? []).map((f) => ({
@@ -153,10 +186,7 @@ export async function listAllData(): Promise<{
       name: f.name,
       count: counts.get(f.id) ?? 0,
     })),
-    links: (links ?? []).map((l) => ({
-      ...l,
-      folder: nameById.get(l.folder_id) ?? "?",
-    })),
+    links: rows,
   };
 }
 
@@ -204,15 +234,40 @@ export async function moveLink(
   if (error) throw error;
 }
 
-export async function listLinks(folderName: string): Promise<Link[] | null> {
+export async function listLinks(
+  folderName: string,
+): Promise<{ url: string }[] | null> {
   const folder = await getFolder(folderName);
   if (!folder) return null;
   const { data, error } = await db()
     .from("links")
-    .select("id, url, folder_id, added_by, created_at")
+    .select("url")
     .eq("folder_id", folder.id)
     .order("created_at", { ascending: false })
     .limit(30);
   if (error) throw error;
   return data ?? [];
+}
+
+export async function getLinkById(
+  id: number,
+): Promise<{ id: number; url: string; thumbnail_status: string | null } | null> {
+  const { data } = await db()
+    .from("links")
+    .select("id, url, thumbnail_status")
+    .eq("id", id)
+    .maybeSingle();
+  return data;
+}
+
+export async function setThumbnail(
+  id: number,
+  url: string | null,
+  status: "ok" | "failed",
+): Promise<void> {
+  const { error } = await db()
+    .from("links")
+    .update({ thumbnail_url: url, thumbnail_status: status })
+    .eq("id", id);
+  if (error) throw error;
 }

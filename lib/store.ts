@@ -24,6 +24,7 @@ export interface Link {
   created_at: string;
   thumbnail_url: string | null;
   thumbnail_status: string | null;
+  note: string | null;
 }
 
 function normalize(name: string): string {
@@ -146,6 +147,7 @@ export async function addLink(
   folderName: string,
   addedBy: string,
   rawMessage: string,
+  note: string | null = null,
 ): Promise<{ folder: Folder; linkId: number }> {
   let folder = await getFolder(folderName);
   if (!folder) {
@@ -157,18 +159,29 @@ export async function addLink(
       if (!folder) throw new Error(`folder create failed: ${folderName}`);
     }
   }
-  const { data, error } = await db()
-    .from("links")
-    .insert({
-      url,
-      folder_id: folder.id,
-      added_by: addedBy,
-      raw_message: rawMessage,
-    })
-    .select("id")
-    .single();
+  const row: Record<string, unknown> = {
+    url,
+    folder_id: folder.id,
+    added_by: addedBy,
+    raw_message: rawMessage,
+  };
+  if (note) row.note = note;
+  let res = await db().from("links").insert(row).select("id").single();
+  if (res.error?.code === "42703" && note) {
+    // coluna note ainda não migrada — salva o link mesmo assim
+    delete row.note;
+    res = await db().from("links").insert(row).select("id").single();
+  }
+  if (res.error) throw res.error;
+  return { folder, linkId: res.data.id };
+}
+
+export async function setLinkNote(
+  id: number,
+  note: string | null,
+): Promise<void> {
+  const { error } = await db().from("links").update({ note }).eq("id", id);
   if (error) throw error;
-  return { folder, linkId: data.id };
 }
 
 // ── Plataforma web ──
@@ -186,30 +199,27 @@ export async function listAllData(): Promise<{
     .select("id, name")
     .order("name");
   if (fErr) throw fErr;
+  // colunas opcionais (thumbnail, note) podem ainda não ter sido migradas →
+  // tenta do select mais completo pro mais básico sem quebrar
+  const attempts = [
+    "id, url, folder_id, added_by, created_at, thumbnail_url, thumbnail_status, note",
+    "id, url, folder_id, added_by, created_at, thumbnail_url, thumbnail_status",
+    "id, url, folder_id, added_by, created_at",
+  ];
   let links: Record<string, unknown>[] | null = null;
-  const withThumbs = await db()
-    .from("links")
-    .select(
-      "id, url, folder_id, added_by, created_at, thumbnail_url, thumbnail_status",
-    )
-    .order("created_at", { ascending: false })
-    .limit(500);
-  if (withThumbs.error) {
-    // colunas de thumbnail ainda não migradas → cai pro básico sem quebrar
-    if (withThumbs.error.code === "42703") {
-      const base = await db()
-        .from("links")
-        .select("id, url, folder_id, added_by, created_at")
-        .order("created_at", { ascending: false })
-        .limit(500);
-      if (base.error) throw base.error;
-      links = base.data;
-    } else {
-      throw withThumbs.error;
+  for (const cols of attempts) {
+    const res = await db()
+      .from("links")
+      .select(cols)
+      .order("created_at", { ascending: false })
+      .limit(500);
+    if (!res.error) {
+      links = res.data as unknown as Record<string, unknown>[];
+      break;
     }
-  } else {
-    links = withThumbs.data;
+    if (res.error.code !== "42703") throw res.error;
   }
+  if (links === null) throw new Error("links select failed");
   const nameById = new Map((folders ?? []).map((f) => [f.id, f.name]));
   const rows: LinkRow[] = (links ?? []).map((l) => {
     const folderId = l.folder_id as number;
@@ -221,6 +231,7 @@ export async function listAllData(): Promise<{
       created_at: l.created_at as string,
       thumbnail_url: (l.thumbnail_url as string | null) ?? null,
       thumbnail_status: (l.thumbnail_status as string | null) ?? null,
+      note: (l.note as string | null) ?? null,
       folder: nameById.get(folderId) ?? "?",
     };
   });

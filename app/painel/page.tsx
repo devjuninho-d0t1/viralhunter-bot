@@ -24,6 +24,7 @@ interface LinkItem {
   created_at: string;
   thumbnail_url: string | null;
   thumbnail_status: string | null;
+  note: string | null;
 }
 
 interface Toast {
@@ -144,6 +145,11 @@ export default function Painel() {
   // renomear pasta inline
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editName, setEditName] = useState("");
+  // insight do link via modal
+  const [noteTarget, setNoteTarget] = useState<number | null>(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  // minerar direto pelo painel (colar link)
+  const [pasteUrl, setPasteUrl] = useState("");
   const toastSeq = useRef(0);
   const knownIds = useRef<Set<number> | null>(null);
   const thumbRequested = useRef<Set<number>>(new Set());
@@ -196,15 +202,18 @@ export default function Painel() {
     return () => clearInterval(t);
   }, [load]);
 
-  // Esc fecha o modal de confirmação
+  // Esc fecha os modais (confirmação / insight)
   useEffect(() => {
-    if (!confirmTarget) return;
+    if (!confirmTarget && noteTarget === null) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setConfirmTarget(null);
+      if (e.key === "Escape") {
+        setConfirmTarget(null);
+        setNoteTarget(null);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [confirmTarget]);
+  }, [confirmTarget, noteTarget]);
 
   async function act(
     input: RequestInfo,
@@ -296,6 +305,45 @@ export default function Painel() {
       `/api/platform/links?id=${t.id}`,
       { method: "DELETE" },
       "link apagado",
+    );
+  }
+
+  function openNote(l: LinkItem) {
+    setNoteDraft(l.note ?? "");
+    setNoteTarget(l.id);
+  }
+
+  function saveNote() {
+    if (noteTarget === null) return;
+    const id = noteTarget;
+    setNoteTarget(null);
+    act(
+      "/api/platform/links",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, note: noteDraft }),
+      },
+      noteDraft.trim() ? "insight salvo" : "insight removido",
+    );
+  }
+
+  function addByPaste(e: React.FormEvent) {
+    e.preventDefault();
+    const url = pasteUrl.trim();
+    if (!url) return;
+    setPasteUrl("");
+    act(
+      "/api/platform/links",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url,
+          folderId: selected === "all" ? undefined : selected,
+        }),
+      },
+      "link minerado ⛏️",
     );
   }
 
@@ -412,19 +460,6 @@ export default function Painel() {
 
   const weekMax = Math.max(1, ...week.map((d) => d.count));
 
-  const ranking = useMemo(() => {
-    const byMiner = new Map<string, number>();
-    for (const l of links) {
-      const who = l.added_by || "anônimo";
-      byMiner.set(who, (byMiner.get(who) ?? 0) + 1);
-    }
-    return [...byMiner.entries()]
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 5);
-  }, [links]);
-
-  const rankMax = Math.max(1, ...ranking.map(([, n]) => n));
-
   const latest = useMemo(() => links.slice(0, 10), [links]);
 
   const total = useCountUp(links.length);
@@ -486,29 +521,8 @@ export default function Painel() {
               </div>
             </section>
 
-            <section>
-              <div className="syslabel">RANKING DE MINERADORES</div>
-              <div className="rank">
-                {ranking.length === 0 && (
-                  <div className="rank-row">
-                    <span className="rank-pos">--</span>
-                    <span className="rank-name">aguardando garimpo_</span>
-                  </div>
-                )}
-                {ranking.map(([who, n], i) => (
-                  <div className="rank-row" key={who}>
-                    <span className="rank-pos">
-                      {String(i + 1).padStart(2, "0")}
-                    </span>
-                    <span className="rank-name">@{who}</span>
-                    <span className="rank-n">{n}</span>
-                    <span className="rank-bar">
-                      <i style={{ width: `${(n / rankMax) * 100}%` }} />
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </section>
+            {/* RANKING DE MINERADORES ocultado por ora — volta quando tiver
+                utilidade real (ex: assuntos em trend). Código no git. */}
 
             <div className="opscol-foot">
               FONTE <span>bot whatsapp/telegram</span>
@@ -625,6 +639,21 @@ export default function Painel() {
                   ☰ lista
                 </button>
               </div>
+              <form className="stage-add" onSubmit={addByPaste}>
+                <input
+                  className="input"
+                  placeholder="cole um link pra minerar_"
+                  value={pasteUrl}
+                  onChange={(e) => setPasteUrl(e.target.value)}
+                />
+                <button
+                  className="btn btn-volt"
+                  type="submit"
+                  disabled={!pasteUrl.trim()}
+                >
+                  ⛏
+                </button>
+              </form>
               <input
                 className="input stage-search"
                 placeholder="buscar url, @minerador, pasta_"
@@ -650,53 +679,60 @@ export default function Painel() {
                   const p = platformOf(l.url);
                   const st = l.thumbnail_status ?? "pending";
                   return (
-                    <a
+                    <div
                       key={l.id}
                       className={`vcard ${freshIds.has(l.id) ? "fresh" : ""}`}
-                      href={l.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
                     >
-                      <div className="vcard-frame">
-                        {st === "ok" && l.thumbnail_url ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            className="vcard-img"
-                            src={l.thumbnail_url}
-                            alt=""
-                            loading="lazy"
-                          />
-                        ) : st === "failed" ? (
-                          <div className={`vcard-fallback ${p.cls}`}>
-                            <span className="vcard-plat">{p.label}</span>
-                            <span className="vcard-noprev">sem preview</span>
-                          </div>
-                        ) : (
-                          <div className="vcard-loading">
-                            <span className="vcard-plat">{p.label}</span>
-                            <span className="vcard-dots">carregando…</span>
-                          </div>
-                        )}
-                        <span className={`vcard-badge ${p.cls}`}>
-                          {p.label}
-                        </span>
-                        <span className="vcard-play">▶</span>
-                        <div className="vcard-info">
-                          <span className="vcard-folder">#{l.folder}</span>
-                          <span className="vcard-sub">
-                            {l.added_by ? `@${l.added_by} · ` : ""}
-                            {timeAgo(l.created_at)}
-                          </span>
-                        </div>
-                      </div>
-                      <div
-                        className="vcard-acts"
-                        onClick={(e) => e.preventDefault()}
+                      {/* só o frame é link — os controles ficam FORA do <a>,
+                          senão o clique no dropdown navega pro Instagram */}
+                      <a
+                        className="vcard-link"
+                        href={l.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
                       >
+                        <div className="vcard-frame">
+                          {st === "ok" && l.thumbnail_url ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              className="vcard-img"
+                              src={l.thumbnail_url}
+                              alt=""
+                              loading="lazy"
+                            />
+                          ) : st === "failed" ? (
+                            <div className={`vcard-fallback ${p.cls}`}>
+                              <span className="vcard-plat">{p.label}</span>
+                              <span className="vcard-noprev">sem preview</span>
+                            </div>
+                          ) : (
+                            <div className="vcard-loading">
+                              <span className="vcard-plat">{p.label}</span>
+                              <span className="vcard-dots">carregando…</span>
+                            </div>
+                          )}
+                          <span className={`vcard-badge ${p.cls}`}>
+                            {p.label}
+                          </span>
+                          <span className="vcard-play">▶</span>
+                          <div className="vcard-info">
+                            <span className="vcard-folder">#{l.folder}</span>
+                            {l.note && (
+                              <span className="vcard-note" title={l.note}>
+                                💬 {l.note}
+                              </span>
+                            )}
+                            <span className="vcard-sub">
+                              {l.added_by ? `@${l.added_by} · ` : ""}
+                              {timeAgo(l.created_at)}
+                            </span>
+                          </div>
+                        </div>
+                      </a>
+                      <div className="vcard-acts">
                         <select
                           className="select"
                           value={l.folder_id}
-                          onClick={(e) => e.stopPropagation()}
                           onChange={(e) =>
                             moveLinkAction(l, Number(e.target.value))
                           }
@@ -709,18 +745,23 @@ export default function Painel() {
                           ))}
                         </select>
                         <button
+                          className="icon-btn"
+                          title={l.note ? "editar insight" : "adicionar insight"}
+                          aria-label="insight do vídeo"
+                          onClick={() => openNote(l)}
+                        >
+                          💬
+                        </button>
+                        <button
                           className="icon-btn danger"
                           title="apagar"
                           aria-label="apagar link"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            askDeleteLink(l);
-                          }}
+                          onClick={() => askDeleteLink(l)}
                         >
                           <TrashIcon />
                         </button>
                       </div>
-                    </a>
+                    </div>
                   );
                 })}
               </div>
@@ -748,6 +789,11 @@ export default function Painel() {
                           {l.added_by && <span>@{l.added_by}</span>}
                           <span>{timeAgo(l.created_at)}</span>
                         </div>
+                        {l.note && (
+                          <div className="row-note" title={l.note}>
+                            💬 {l.note}
+                          </div>
+                        )}
                       </div>
                       <div className="row-acts">
                         <select
@@ -764,6 +810,14 @@ export default function Painel() {
                             </option>
                           ))}
                         </select>
+                        <button
+                          className="icon-btn"
+                          title={l.note ? "editar insight" : "adicionar insight"}
+                          aria-label="insight do vídeo"
+                          onClick={() => openNote(l)}
+                        >
+                          💬
+                        </button>
                         <button
                           className="icon-btn danger"
                           title="apagar link"
@@ -828,6 +882,42 @@ export default function Painel() {
               </button>
               <button className="btn btn-danger-solid" onClick={confirmDelete}>
                 apagar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {noteTarget !== null && (
+        <div className="modal-backdrop" onClick={() => setNoteTarget(null)}>
+          <div
+            className="modal"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="modal-title">💬 Insight do vídeo</h3>
+            <textarea
+              className="modal-textarea"
+              autoFocus
+              rows={4}
+              maxLength={500}
+              placeholder="o que esse vídeo tem de especial?_"
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                  e.preventDefault();
+                  saveNote();
+                }
+              }}
+            />
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setNoteTarget(null)}>
+                cancelar
+              </button>
+              <button className="btn btn-volt" onClick={saveNote}>
+                salvar
               </button>
             </div>
           </div>

@@ -42,6 +42,11 @@ Cole o link e adicione *#nome* na mensagem:
 \`https://... #ads\`
 → Salvo em *ads*. Se a pasta não existir, eu crio na hora.
 
+*💬 Deixar um insight junto*
+Escreva seu comentário na mesma mensagem do link:
+\`https://... #ads gancho absurdo nos 3 primeiros segundos\`
+→ o texto vira anotação do vídeo no painel.
+
 *3️⃣ /criar [nome]* — cria uma pasta vazia
 Ex: \`/criar criativos\`
 
@@ -84,6 +89,14 @@ export function extractFolderTag(text: string): string | null {
   const withoutUrls = text.replace(/https?:\/\/[^\s]+/g, " ");
   const match = withoutUrls.match(/#([\p{L}\p{N}_-]+)/u);
   return match ? match[1].toLowerCase() : null;
+}
+
+/** O que sobra da mensagem sem a URL e sem a #pasta vira insight do vídeo. */
+export function extractNote(text: string, folderTag: string | null): string | null {
+  let rest = text.replace(/https?:\/\/[^\s]+/g, " ");
+  if (folderTag) rest = rest.replace(new RegExp(`#${folderTag}\\b`, "iu"), " ");
+  const note = rest.replace(/\s+/g, " ").trim();
+  return note || null;
 }
 
 /**
@@ -189,13 +202,21 @@ export async function handleMessage(
     return `♻️ Esse link já foi minerado — está em *${dup.folder}* (#${dup.id}).`;
   }
 
-  const folderName = extractFolderTag(text) ?? "inbox";
-  const { folder, linkId } = await addLink(url, folderName, msg.userName, text);
+  const tag = extractFolderTag(text);
+  const folderName = tag ?? "inbox";
+  const note = extractNote(text, tag);
+  const { folder, linkId } = await addLink(
+    url,
+    folderName,
+    msg.userName,
+    text,
+    note,
+  );
 
   // dispara pro adapter da plataforma (stub até o Felipe definir)
   sendToPlatform({ url, folder: folder.name, linkId }).catch((err) =>
     console.error("sendToPlatform error:", err),
   );
 
-  return `📥 Salvo em *${folder.name}* (#${linkId}).`;
+  return `📥 Salvo em *${folder.name}* (#${linkId}).${note ? " 💬 Insight anotado." : ""}`;
 }

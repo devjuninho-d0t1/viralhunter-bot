@@ -93,6 +93,54 @@ export async function renameFolder(
   return true;
 }
 
+// Parâmetros de rastreio que variam entre compartilhamentos do mesmo link
+// (igsh do Instagram, si do YouTube/TikTok, utm_*, etc.)
+const TRACKING_PARAMS = new Set([
+  "igsh",
+  "igshid",
+  "si",
+  "feature",
+  "fbclid",
+  "gclid",
+  "s",
+  "t",
+]);
+
+/** Canoniza a URL pra comparação de duplicados (host minúsculo sem www,
+ *  sem hash, sem parâmetros de rastreio, sem barra final). O path é
+ *  preservado como veio — shortcodes do Instagram são case-sensitive. */
+export function normalizeUrl(raw: string): string {
+  try {
+    const u = new URL(raw);
+    u.hash = "";
+    u.hostname = u.hostname.toLowerCase().replace(/^www\./, "");
+    for (const key of [...u.searchParams.keys()]) {
+      if (key.startsWith("utm_") || TRACKING_PARAMS.has(key)) {
+        u.searchParams.delete(key);
+      }
+    }
+    return u.toString().replace(/\?$/, "").replace(/\/$/, "");
+  } catch {
+    return raw.trim();
+  }
+}
+
+/** Procura um link já minerado equivalente (após normalização). */
+export async function findLinkByUrl(
+  url: string,
+): Promise<{ id: number; folder: string } | null> {
+  const target = normalizeUrl(url);
+  const { data, error } = await db()
+    .from("links")
+    .select("id, url, folder_id")
+    .order("created_at", { ascending: false });
+  if (error) throw error;
+  const match = (data ?? []).find((l) => normalizeUrl(l.url) === target);
+  if (!match) return null;
+  const folder = await getFolderById(match.folder_id);
+  return { id: match.id, folder: folder?.name ?? "?" };
+}
+
 export async function addLink(
   url: string,
   folderName: string,

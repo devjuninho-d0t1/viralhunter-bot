@@ -2,6 +2,7 @@ import {
   addLink,
   createFolder,
   deleteFolder,
+  findLinkByUrl,
   getFolder,
   listFolders,
   listLinks,
@@ -182,6 +183,11 @@ export async function handleMessage(
   // ── Link solto ──
   const url = extractUrl(text);
   if (!url) return null; // mensagem sem link e sem comando: ignora
+
+  const dup = await findLinkByUrl(url);
+  if (dup) {
+    return `♻️ Esse link já foi minerado — está em *${dup.folder}* (#${dup.id}).`;
+  }
 
   const folderName = extractFolderTag(text) ?? "inbox";
   const { folder, linkId } = await addLink(url, folderName, msg.userName, text);

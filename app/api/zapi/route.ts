@@ -39,8 +39,13 @@ export async function POST(request: NextRequest) {
 
     // Link minerado (resposta "📥 Salvo em...") → reage com picareta na
     // mensagem original, sinalizando "minerado e salvo na plataforma".
-    if (answer?.startsWith("📥") && parsed.messageId) {
-      await sendReaction(parsed.chatId, parsed.messageId, "⛏️");
+    // Link repetido (resposta "♻️ ...") → reage com reciclagem.
+    if (parsed.messageId) {
+      if (answer?.startsWith("📥")) {
+        await sendReaction(parsed.chatId, parsed.messageId, "⛏️");
+      } else if (answer?.startsWith("♻️")) {
+        await sendReaction(parsed.chatId, parsed.messageId, "♻️");
+      }
     }
 
     if (answer) {

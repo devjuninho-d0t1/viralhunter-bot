@@ -33,6 +33,14 @@ interface Toast {
   text: string;
 }
 
+interface MinerItem {
+  key: string;
+  raw: string;
+  display: string;
+  count: number;
+  aliased: boolean;
+}
+
 function timeAgo(iso: string): string {
   const s = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
   if (s < 60) return "agora";
@@ -150,6 +158,10 @@ export default function Painel() {
   const [noteDraft, setNoteDraft] = useState("");
   // minerar direto pelo painel (colar link)
   const [pasteUrl, setPasteUrl] = useState("");
+  // apelidos de minerador (mesma pessoa com nome diferente por canal)
+  const [minersOpen, setMinersOpen] = useState(false);
+  const [miners, setMiners] = useState<MinerItem[]>([]);
+  const [minerDrafts, setMinerDrafts] = useState<Record<string, string>>({});
   const toastSeq = useRef(0);
   const knownIds = useRef<Set<number> | null>(null);
   const thumbRequested = useRef<Set<number>>(new Set());
@@ -202,18 +214,19 @@ export default function Painel() {
     return () => clearInterval(t);
   }, [load]);
 
-  // Esc fecha os modais (confirmação / insight)
+  // Esc fecha os modais (confirmação / insight / mineradores)
   useEffect(() => {
-    if (!confirmTarget && noteTarget === null) return;
+    if (!confirmTarget && noteTarget === null && !minersOpen) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setConfirmTarget(null);
         setNoteTarget(null);
+        setMinersOpen(false);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [confirmTarget, noteTarget]);
+  }, [confirmTarget, noteTarget, minersOpen]);
 
   async function act(
     input: RequestInfo,
@@ -360,6 +373,41 @@ export default function Painel() {
     );
   }
 
+  const loadMiners = useCallback(async () => {
+    try {
+      const res = await fetch("/api/platform/miners", { cache: "no-store" });
+      const json = await res.json();
+      if (!json.ok) return;
+      const list = json.miners as MinerItem[];
+      setMiners(list);
+      setMinerDrafts(
+        Object.fromEntries(list.map((m) => [m.key, m.display])),
+      );
+    } catch {
+      /* rede oscilou — abrir de novo resolve */
+    }
+  }, []);
+
+  function openMiners() {
+    setMinersOpen(true);
+    void loadMiners();
+  }
+
+  async function saveMiner(m: MinerItem) {
+    const name = (minerDrafts[m.key] ?? "").trim();
+    if (name === m.display) return;
+    await act(
+      "/api/platform/miners",
+      {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: m.key, displayName: name }),
+      },
+      name ? `agora aparece como "${name}"` : "apelido removido",
+    );
+    await loadMiners();
+  }
+
   async function logout() {
     await fetch("/api/platform/login", { method: "DELETE" });
     router.push("/");
@@ -481,6 +529,13 @@ export default function Painel() {
           <span className="dot-live" /> SISTEMA ONLINE
         </span>
         <Clock />
+        <button
+          className="cmdbar-btn"
+          onClick={openMiners}
+          title="unificar o nome de quem minera"
+        >
+          ⛏ mineradores
+        </button>
         <button className="cmdbar-exit" onClick={logout}>
           sair →
         </button>
@@ -525,7 +580,7 @@ export default function Painel() {
                 utilidade real (ex: assuntos em trend). Código no git. */}
 
             <div className="opscol-foot">
-              FONTE <span>bot whatsapp/telegram</span>
+              FONTE <span>bot whatsapp · painel</span>
               <br />
               SYNC <span>a cada 5s</span>
               <br />
@@ -918,6 +973,67 @@ export default function Painel() {
               </button>
               <button className="btn btn-volt" onClick={saveNote}>
                 salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {minersOpen && (
+        <div className="modal-backdrop" onClick={() => setMinersOpen(false)}>
+          <div
+            className="modal modal-wide"
+            role="dialog"
+            aria-modal="true"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="modal-title">⛏ Mineradores</h3>
+            <p className="modal-note">
+              Cada canal manda o nome do seu jeito — WhatsApp usa o nome do
+              perfil, Telegram o @, e link colado aqui entra como
+              &ldquo;painel&rdquo;. Escreve como a pessoa deve aparecer e o
+              histórico inteiro dela se ajusta. Campo vazio volta ao nome
+              original.
+            </p>
+            {miners.length === 0 ? (
+              <p className="modal-note">ninguém minerou nada ainda.</p>
+            ) : (
+              <div className="minerlist">
+                {miners.map((m) => (
+                  <div className="minerrow" key={m.key}>
+                    <span className="minerrow-raw" title={m.raw}>
+                      @{m.raw}
+                    </span>
+                    <span className="minerrow-n">{m.count}</span>
+                    <span className="minerrow-arrow">→</span>
+                    <input
+                      className="input"
+                      value={minerDrafts[m.key] ?? ""}
+                      maxLength={40}
+                      placeholder={m.raw}
+                      onChange={(e) =>
+                        setMinerDrafts((d) => ({
+                          ...d,
+                          [m.key]: e.target.value,
+                        }))
+                      }
+                      onKeyDown={(e) => {
+                        // Enter só tira o foco: quem salva é o onBlur, senão
+                        // os dois disparam e o PATCH vai duas vezes
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          e.currentTarget.blur();
+                        }
+                      }}
+                      onBlur={() => void saveMiner(m)}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="modal-actions">
+              <button className="btn" onClick={() => setMinersOpen(false)}>
+                fechar
               </button>
             </div>
           </div>

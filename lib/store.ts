@@ -1,15 +1,5 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
-
-let _client: SupabaseClient | null = null;
-function db(): SupabaseClient {
-  if (!_client) {
-    _client = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!,
-    );
-  }
-  return _client;
-}
+import { db } from "./db";
+import { AliasMap, loadAliases, resolveMiner } from "./miners";
 
 export interface Folder {
   id: number;
@@ -221,13 +211,22 @@ export async function listAllData(): Promise<{
   }
   if (links === null) throw new Error("links select failed");
   const nameById = new Map((folders ?? []).map((f) => [f.id, f.name]));
+  // o mesmo minerador chega com nomes diferentes por canal — colapsa tudo no
+  // apelido cadastrado (ver lib/miners.ts). Camada cosmética: se ela falhar,
+  // o painel mostra os nomes crus em vez de não abrir.
+  let aliases: AliasMap = {};
+  try {
+    aliases = await loadAliases();
+  } catch (err) {
+    console.warn("apelidos indisponíveis, usando nomes crus:", err);
+  }
   const rows: LinkRow[] = (links ?? []).map((l) => {
     const folderId = l.folder_id as number;
     return {
       id: l.id as number,
       url: l.url as string,
       folder_id: folderId,
-      added_by: (l.added_by as string | null) ?? null,
+      added_by: resolveMiner(l.added_by as string | null, aliases),
       created_at: l.created_at as string,
       thumbnail_url: (l.thumbnail_url as string | null) ?? null,
       thumbnail_status: (l.thumbnail_status as string | null) ?? null,

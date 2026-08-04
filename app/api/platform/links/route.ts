@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE, isValidSession } from "@/lib/session";
+import { isAuthorizedRequest } from "@/lib/session";
 import {
   addLink,
   deleteLink,
@@ -10,8 +10,19 @@ import {
 } from "@/lib/store";
 import { isProfileLink } from "@/lib/linkkind";
 
+/** Painel (cookie) ou extensão do Chrome (Bearer). */
 async function authorized(request: NextRequest): Promise<boolean> {
-  return isValidSession(request.cookies.get(SESSION_COOKIE)?.value);
+  return isAuthorizedRequest(request);
+}
+
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, PATCH, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+};
+
+export async function OPTIONS() {
+  return new NextResponse(null, { status: 204, headers: CORS });
 }
 
 function migrationPending(err: unknown): boolean {
@@ -20,14 +31,14 @@ function migrationPending(err: unknown): boolean {
 
 export async function POST(request: NextRequest) {
   if (!(await authorized(request)))
-    return NextResponse.json({ ok: false }, { status: 401 });
+    return NextResponse.json({ ok: false }, { status: 401, headers: CORS });
   try {
-    const { url, folderId, note } = await request.json();
+    const { url, folderId, note, source } = await request.json();
     const trimmed = String(url ?? "").trim();
     if (!/^https?:\/\/\S+$/.test(trimmed))
       return NextResponse.json(
         { ok: false, error: "Isso não parece um link" },
-        { status: 400 },
+        { status: 400, headers: CORS },
       );
     if (isProfileLink(trimmed))
       return NextResponse.json(
@@ -35,7 +46,7 @@ export async function POST(request: NextRequest) {
           ok: false,
           error: "Link de perfil não é arquivado. Envie um vídeo: reel, post ou short",
         },
-        { status: 422 },
+        { status: 422, headers: CORS },
       );
     const dup = await findLinkByUrl(trimmed);
     if (dup)
@@ -44,24 +55,32 @@ export async function POST(request: NextRequest) {
           ok: false,
           error: `Já minerado, está em #${dup.folder} (${dup.id})`,
         },
-        { status: 409 },
+        { status: 409, headers: CORS },
       );
     let folderName = "inbox";
     if (folderId) {
       const folder = await getFolderById(Number(folderId));
       if (folder) folderName = folder.name;
     }
+    // quem minerou: "painel" ou o nome que a extensão mandar
+    const addedBy =
+      typeof source === "string" && source.trim()
+        ? source.trim().slice(0, 40)
+        : "painel";
     const { folder, linkId } = await addLink(
       trimmed,
       folderName,
-      "painel",
+      addedBy,
       trimmed,
       typeof note === "string" && note.trim() ? note.trim() : null,
     );
-    return NextResponse.json({ ok: true, id: linkId, folder: folder.name });
+    return NextResponse.json(
+      { ok: true, id: linkId, folder: folder.name },
+      { headers: CORS },
+    );
   } catch (err) {
     console.error("link create error:", err);
-    return NextResponse.json({ ok: false }, { status: 500 });
+    return NextResponse.json({ ok: false }, { status: 500, headers: CORS });
   }
 }
 

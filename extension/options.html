@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body class="options">
+    <main class="card">
+      <h1 class="brand big">VIRALHUNTER</h1>
+      <p class="sub">Extensão do time — configuração</p>
+
+      <div class="field">
+        <label for="baseUrl">Endereço do painel</label>
+        <input
+          id="baseUrl"
+          type="url"
+          placeholder="https://b2b-minerador.vercel.app"
+        />
+      </div>
+
+      <div class="field">
+        <label for="password">Senha do time</label>
+        <input id="password" type="password" placeholder="••••••••" />
+        <span class="hint">
+          Usada uma única vez para conectar. A senha não fica salva: a extensão
+          guarda apenas a credencial devolvida pelo painel.
+        </span>
+      </div>
+
+      <button id="connect" class="btn primary" type="button">Conectar</button>
+      <p id="connStatus" class="status"></p>
+
+      <hr />
+
+      <div class="field">
+        <label for="minerName">Seu nome no painel</label>
+        <input id="minerName" type="text" maxlength="40" placeholder="ex.: Rodrigo" />
+        <span class="hint">
+          Aparece como autor dos vídeos que você minerar por aqui. Em branco,
+          entra como &ldquo;extensão&rdquo;.
+        </span>
+      </div>
+
+      <div class="field">
+        <label for="defaultFolder">Pasta padrão</label>
+        <select id="defaultFolder">
+          <option value="">inbox</option>
+        </select>
+        <span class="hint">
+          Usada pelo botão flutuante e pelo atalho de teclado.
+        </span>
+      </div>
+
+      <button id="save" class="btn" type="button">Salvar preferências</button>
+      <p id="saveStatus" class="status"></p>
+    </main>
+
+    <script src="options.js"></script>
+  </body>
+</html>

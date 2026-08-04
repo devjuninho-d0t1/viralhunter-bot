@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="ui.css" />
+  </head>
+  <body class="popup">
+    <header class="head">
+      <span class="brand">VIRALHUNTER</span>
+      <button id="opts" class="linkbtn" type="button">opções</button>
+    </header>
+
+    <div id="setup" class="hidden">
+      <p class="msg">
+        A extensão ainda não está conectada ao painel do time.
+      </p>
+      <button id="toOptions" class="btn primary" type="button">
+        Conectar
+      </button>
+    </div>
+
+    <form id="form" class="hidden">
+      <div class="field">
+        <label for="url">Vídeo</label>
+        <input id="url" type="text" readonly />
+      </div>
+
+      <div class="field">
+        <label for="folder">Pasta</label>
+        <select id="folder"></select>
+      </div>
+
+      <div class="field">
+        <label for="note">Insight (opcional)</label>
+        <textarea
+          id="note"
+          rows="3"
+          maxlength="500"
+          placeholder="o que esse vídeo tem de bom?"
+        ></textarea>
+      </div>
+
+      <button id="submit" class="btn primary" type="submit">Minerar</button>
+      <p id="status" class="status"></p>
+    </form>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

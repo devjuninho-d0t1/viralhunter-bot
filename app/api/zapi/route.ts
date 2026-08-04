@@ -37,20 +37,16 @@ export async function POST(request: NextRequest) {
       userName: parsed.userName,
     });
 
-    // Link minerado (resposta "📥 Salvo em...") → reage com picareta na
-    // mensagem original, sinalizando "minerado e salvo na plataforma".
-    // Link repetido (resposta "♻️ ...") → reage com reciclagem.
-    if (parsed.messageId) {
-      if (answer?.startsWith("📥")) {
-        await sendReaction(parsed.chatId, parsed.messageId, "⛏️");
-      } else if (answer?.startsWith("♻️")) {
-        await sendReaction(parsed.chatId, parsed.messageId, "♻️");
-      }
+    // Reação na mensagem original: picareta quando minerou, reciclagem
+    // quando já existia. O núcleo diz qual é — não se deduz do texto.
+    if (parsed.messageId && answer?.reaction) {
+      const emoji = answer.reaction === "mined" ? "⛏️" : "♻️";
+      await sendReaction(parsed.chatId, parsed.messageId, emoji);
     }
 
     if (answer) {
       // *negrito* do núcleo renderiza nativamente no WhatsApp
-      await sendWhatsApp(parsed.chatId, answer);
+      await sendWhatsApp(parsed.chatId, answer.text);
     }
 
     return new Response("OK", { status: 200 });

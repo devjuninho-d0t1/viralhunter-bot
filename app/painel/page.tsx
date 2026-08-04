@@ -135,6 +135,73 @@ function TrashIcon() {
   );
 }
 
+/** base dos ícones de linha — mesmo traço do TrashIcon */
+function Icon({
+  children,
+  size = 14,
+}: {
+  children: React.ReactNode;
+  size?: number;
+}) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      {children}
+    </svg>
+  );
+}
+
+const PickIcon = () => (
+  <Icon>
+    <path d="M12 12L3 21" />
+    <path d="M14.5 9.5c3-3 6.5-4 8.5-3.5-1.5-3-6-4-9.5-2S8 10 7 12c2-1 4.5-.5 7.5-2.5z" />
+  </Icon>
+);
+
+const NoteIcon = () => (
+  <Icon>
+    <path d="M21 11.5a8.38 8.38 0 0 1-9 8.5 8.5 8.5 0 0 1-3.8-.9L3 21l1.9-5.2A8.5 8.5 0 0 1 4 12a8.38 8.38 0 0 1 8.5-9 8.5 8.5 0 0 1 8.5 8.5z" />
+  </Icon>
+);
+
+const PencilIcon = () => (
+  <Icon>
+    <path d="M12 20h9" />
+    <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z" />
+  </Icon>
+);
+
+const GridIcon = () => (
+  <Icon size={12}>
+    <rect x="3" y="3" width="7" height="7" rx="1" />
+    <rect x="14" y="3" width="7" height="7" rx="1" />
+    <rect x="3" y="14" width="7" height="7" rx="1" />
+    <rect x="14" y="14" width="7" height="7" rx="1" />
+  </Icon>
+);
+
+const ListIcon = () => (
+  <Icon size={12}>
+    <path d="M8 6h13M8 12h13M8 18h13" />
+    <path d="M3 6h.01M3 12h.01M3 18h.01" />
+  </Icon>
+);
+
+const PlayIcon = () => (
+  <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M8 5.5v13l11-6.5z" />
+  </svg>
+);
+
 export default function Painel() {
   const router = useRouter();
   const [folders, setFolders] = useState<FolderItem[]>([]);
@@ -240,10 +307,10 @@ export default function Painel() {
         toast("ok", okMsg);
         await load();
       } else {
-        toast("err", json.error ?? "algo deu errado");
+        toast("err", json.error ?? "não foi possível concluir");
       }
     } catch {
-      toast("err", "erro de conexão");
+      toast("err", "falha de conexão");
     }
   }
 
@@ -259,7 +326,7 @@ export default function Painel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       },
-      `pasta "${name.toLowerCase()}" criada`,
+      `Pasta "${name.toLowerCase()}" criada`,
     );
   }
 
@@ -279,7 +346,7 @@ export default function Painel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: f.id, name }),
       },
-      `renomeada para "${name.toLowerCase()}"`,
+      `Renomeada para "${name.toLowerCase()}"`,
     );
   }
 
@@ -310,14 +377,14 @@ export default function Painel() {
       act(
         `/api/platform/folders?id=${t.id}`,
         { method: "DELETE" },
-        "pasta apagada",
+        "Pasta apagada",
       );
       return;
     }
     act(
       `/api/platform/links?id=${t.id}`,
       { method: "DELETE" },
-      "link apagado",
+      "Link apagado",
     );
   }
 
@@ -337,7 +404,7 @@ export default function Painel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, note: noteDraft }),
       },
-      noteDraft.trim() ? "insight salvo" : "insight removido",
+      noteDraft.trim() ? "Insight salvo" : "Insight removido",
     );
   }
 
@@ -356,7 +423,7 @@ export default function Painel() {
           folderId: selected === "all" ? undefined : selected,
         }),
       },
-      "link minerado ⛏️",
+      "Link minerado",
     );
   }
 
@@ -369,7 +436,7 @@ export default function Painel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id: l.id, folderId }),
       },
-      "link movido",
+      "Link movido",
     );
   }
 
@@ -403,7 +470,7 @@ export default function Painel() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ key: m.key, displayName: name }),
       },
-      name ? `agora aparece como "${name}"` : "apelido removido",
+      name ? `Agora aparece como "${name}"` : "Apelido removido",
     );
     await loadMiners();
   }
@@ -534,7 +601,7 @@ export default function Painel() {
           onClick={openMiners}
           title="unificar o nome de quem minera"
         >
-          ⛏ mineradores
+          <PickIcon /> mineradores
         </button>
         <button className="cmdbar-exit" onClick={logout}>
           sair →
@@ -542,7 +609,7 @@ export default function Painel() {
       </header>
 
       {!loaded ? (
-        <div className="loading">estabelecendo conexão com o garimpo…</div>
+        <div className="loading">Carregando dados do garimpo…</div>
       ) : (
         <div className="deck">
           <aside className="opscol">
@@ -637,7 +704,7 @@ export default function Painel() {
                           startRename(f);
                         }}
                       >
-                        ✎
+                        <PencilIcon />
                       </span>
                       <span
                         role="button"
@@ -658,7 +725,7 @@ export default function Painel() {
               <form className="tab-new" onSubmit={createFolder}>
                 <input
                   className="input"
-                  placeholder="nova pasta_"
+                  placeholder="nova pasta"
                   value={newFolder}
                   onChange={(e) => setNewFolder(e.target.value)}
                   maxLength={30}
@@ -684,20 +751,20 @@ export default function Painel() {
                   onClick={() => setView("vitrine")}
                   title="vitrine com preview"
                 >
-                  ▦ vitrine
+                  <GridIcon /> vitrine
                 </button>
                 <button
                   className={view === "lista" ? "active" : ""}
                   onClick={() => setView("lista")}
                   title="lista compacta"
                 >
-                  ☰ lista
+                  <ListIcon /> lista
                 </button>
               </div>
               <form className="stage-add" onSubmit={addByPaste}>
                 <input
                   className="input"
-                  placeholder="cole um link pra minerar_"
+                  placeholder="cole um link para minerar"
                   value={pasteUrl}
                   onChange={(e) => setPasteUrl(e.target.value)}
                 />
@@ -706,28 +773,45 @@ export default function Painel() {
                   type="submit"
                   disabled={!pasteUrl.trim()}
                 >
-                  ⛏
+                  <PickIcon />
                 </button>
               </form>
               <input
                 className="input stage-search"
-                placeholder="buscar url, @minerador, pasta_"
+                placeholder="buscar por url, minerador ou pasta"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
 
             {visible.length === 0 ? (
-              <div className="empty">
-                <div className="empty-title">SETOR VAZIO</div>
-                <p>
-                  manda um link no grupo do bot que ele aparece aqui
-                  ao vivo
-                  <br />
-                  usa <code>#pasta</code> na mensagem pra cair direto
-                  no lugar certo_
-                </p>
-              </div>
+              search.trim() ? (
+                // busca sem resultado não é setor vazio — mandar o usuário
+                // "postar no grupo do bot" aqui não ajuda em nada
+                <div className="empty">
+                  <div className="empty-title">NADA ENCONTRADO</div>
+                  <p>
+                    Nenhum link corresponde a <code>{search.trim()}</code>
+                    <br />
+                    <button
+                      className="btn empty-action"
+                      onClick={() => setSearch("")}
+                    >
+                      limpar busca
+                    </button>
+                  </p>
+                </div>
+              ) : (
+                <div className="empty">
+                  <div className="empty-title">SETOR VAZIO</div>
+                  <p>
+                    Envie um link no grupo do bot e ele aparece aqui ao vivo.
+                    <br />
+                    Use <code>#pasta</code> na mensagem para arquivar direto
+                    no lugar certo.
+                  </p>
+                </div>
+              )
             ) : view === "vitrine" ? (
               <div className="vitrine">
                 {visible.map((l) => {
@@ -769,12 +853,12 @@ export default function Painel() {
                           <span className={`vcard-badge ${p.cls}`}>
                             {p.label}
                           </span>
-                          <span className="vcard-play">▶</span>
+                          <span className="vcard-play"><PlayIcon /></span>
                           <div className="vcard-info">
                             <span className="vcard-folder">#{l.folder}</span>
                             {l.note && (
                               <span className="vcard-note" title={l.note}>
-                                💬 {l.note}
+                                <NoteIcon /> {l.note}
                               </span>
                             )}
                             <span className="vcard-sub">
@@ -805,7 +889,7 @@ export default function Painel() {
                           aria-label="insight do vídeo"
                           onClick={() => openNote(l)}
                         >
-                          💬
+                          <NoteIcon />
                         </button>
                         <button
                           className="icon-btn danger"
@@ -846,7 +930,7 @@ export default function Painel() {
                         </div>
                         {l.note && (
                           <div className="row-note" title={l.note}>
-                            💬 {l.note}
+                            <NoteIcon /> {l.note}
                           </div>
                         )}
                       </div>
@@ -871,7 +955,7 @@ export default function Painel() {
                           aria-label="insight do vídeo"
                           onClick={() => openNote(l)}
                         >
-                          💬
+                          <NoteIcon />
                         </button>
                         <button
                           className="icon-btn danger"
@@ -951,13 +1035,13 @@ export default function Painel() {
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="modal-title">💬 Insight do vídeo</h3>
+            <h3 className="modal-title">Insight do vídeo</h3>
             <textarea
               className="modal-textarea"
               autoFocus
               rows={4}
               maxLength={500}
-              placeholder="o que esse vídeo tem de especial?_"
+              placeholder="o que esse vídeo tem de bom?"
               value={noteDraft}
               onChange={(e) => setNoteDraft(e.target.value)}
               onKeyDown={(e) => {
@@ -987,16 +1071,15 @@ export default function Painel() {
             aria-modal="true"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="modal-title">⛏ Mineradores</h3>
+            <h3 className="modal-title">Mineradores</h3>
             <p className="modal-note">
-              Cada canal manda o nome do seu jeito — WhatsApp usa o nome do
-              perfil, Telegram o @, e link colado aqui entra como
-              &ldquo;painel&rdquo;. Escreve como a pessoa deve aparecer e o
-              histórico inteiro dela se ajusta. Campo vazio volta ao nome
-              original.
+              Cada canal manda o nome do seu jeito: o WhatsApp usa o nome do
+              perfil e um link colado aqui entra como &ldquo;painel&rdquo;.
+              Defina como a pessoa deve aparecer e todo o histórico dela se
+              ajusta. Campo vazio volta ao nome original.
             </p>
             {miners.length === 0 ? (
-              <p className="modal-note">ninguém minerou nada ainda.</p>
+              <p className="modal-note">Ninguém minerou nada ainda.</p>
             ) : (
               <div className="minerlist">
                 {miners.map((m) => (
@@ -1043,7 +1126,7 @@ export default function Painel() {
       <div className="toasts">
         {toasts.map((t) => (
           <div key={t.id} className={`toast ${t.kind}`}>
-            {t.kind === "ok" ? "✓ " : "✕ "}
+            {t.kind === "ok" ? "\u2713 " : "\u2715 "}
             {t.text}
           </div>
         ))}

@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
 
     const answer = await handleMessage({ text, userName });
     if (answer) {
-      await reply(msg.chat.id, answer, msg.message_id);
+      await reply(msg.chat.id, answer.text, msg.message_id);
     }
 
     return new Response("OK", { status: 200 });

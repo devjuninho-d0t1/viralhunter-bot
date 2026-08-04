@@ -15,10 +15,10 @@ export default function NotFound() {
             SETOR NÃO ENCONTRADO
           </h2>
           <p className="login-sub cursor-blink">
-            essa rota não existe no terminal
+            Esta rota não existe no terminal.
           </p>
           <Link href="/" className="btn btn-volt">
-            ← voltar pro painel
+            Voltar para o painel
           </Link>
         </div>
       </div>

@@ -23,9 +23,9 @@ export default function LoginPage() {
         router.push("/painel");
         return;
       }
-      setError("ACESSO NEGADO — senha incorreta_");
+      setError("Acesso negado: senha incorreta.");
     } catch {
-      setError("erro de conexão. tenta de novo_");
+      setError("Falha de conexão. Tente novamente.");
     } finally {
       setLoading(false);
     }

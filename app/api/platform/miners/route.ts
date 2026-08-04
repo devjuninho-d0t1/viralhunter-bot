@@ -28,13 +28,13 @@ export async function PATCH(request: NextRequest) {
     const raw = String(key ?? "").trim();
     if (!raw)
       return NextResponse.json(
-        { ok: false, error: "minerador obrigatório" },
+        { ok: false, error: "Minerador obrigatório" },
         { status: 400 },
       );
     const name = String(displayName ?? "").trim();
     if (name.length > 40)
       return NextResponse.json(
-        { ok: false, error: "nome muito longo (máx 40)" },
+        { ok: false, error: "Nome muito longo (máximo 40 caracteres)" },
         { status: 400 },
       );
     await setAlias(raw, name || null);
@@ -42,7 +42,7 @@ export async function PATCH(request: NextRequest) {
   } catch (err) {
     if (tableMissing(err))
       return NextResponse.json(
-        { ok: false, error: "rode migration-miners.sql no Supabase" },
+        { ok: false, error: "Execute migration-miners.sql no Supabase" },
         { status: 409 },
       );
     console.error("miner alias error:", err);

@@ -20,7 +20,9 @@ export async function POST(request: NextRequest) {
   const res = NextResponse.json({ ok: true });
   res.cookies.set(SESSION_COOKIE, await sessionToken(), {
     httpOnly: true,
-    secure: true,
+    // Secure fixo derruba o login em http://localhost (o WebKit descarta o
+    // cookie sem avisar) — em produção segue https, que é o que importa.
+    secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     path: "/",
     maxAge: 60 * 60 * 24 * 30,

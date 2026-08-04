@@ -8,6 +8,7 @@ import {
   moveLink,
   setLinkNote,
 } from "@/lib/store";
+import { isProfileLink } from "@/lib/linkkind";
 
 async function authorized(request: NextRequest): Promise<boolean> {
   return isValidSession(request.cookies.get(SESSION_COOKIE)?.value);
@@ -25,13 +26,24 @@ export async function POST(request: NextRequest) {
     const trimmed = String(url ?? "").trim();
     if (!/^https?:\/\/\S+$/.test(trimmed))
       return NextResponse.json(
-        { ok: false, error: "isso não parece um link" },
+        { ok: false, error: "Isso não parece um link" },
         { status: 400 },
+      );
+    if (isProfileLink(trimmed))
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "Link de perfil não é arquivado. Envie um vídeo: reel, post ou short",
+        },
+        { status: 422 },
       );
     const dup = await findLinkByUrl(trimmed);
     if (dup)
       return NextResponse.json(
-        { ok: false, error: `já minerado em #${dup.folder} (${dup.id})` },
+        {
+          ok: false,
+          error: `Já minerado, está em #${dup.folder} (${dup.id})`,
+        },
         { status: 409 },
       );
     let folderName = "inbox";
@@ -60,7 +72,7 @@ export async function DELETE(request: NextRequest) {
     const id = Number(request.nextUrl.searchParams.get("id"));
     if (!id)
       return NextResponse.json(
-        { ok: false, error: "id obrigatório" },
+        { ok: false, error: "Id obrigatório" },
         { status: 400 },
       );
     await deleteLink(id);

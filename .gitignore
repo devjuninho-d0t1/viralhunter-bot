@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# zip da extensao (gerado no prebuild, nunca commitado)
+public/viralhunter-extensao.zip

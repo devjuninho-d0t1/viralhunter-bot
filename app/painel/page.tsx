@@ -196,6 +196,14 @@ const ListIcon = () => (
   </Icon>
 );
 
+const ChromeIcon = () => (
+  <Icon>
+    <circle cx="12" cy="12" r="9" />
+    <circle cx="12" cy="12" r="3.4" />
+    <path d="M21 8.5H12M4 6.8l4.5 7.7M9.6 20.7l3.9-6.8" />
+  </Icon>
+);
+
 const PlayIcon = () => (
   <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
     <path d="M8 5.5v13l11-6.5z" />
@@ -596,6 +604,13 @@ export default function Painel() {
           <span className="dot-live" /> SISTEMA ONLINE
         </span>
         <Clock />
+        <a
+          className="cmdbar-btn"
+          href="/extensao"
+          title="instalar a extensão do Chrome"
+        >
+          <ChromeIcon /> extensão
+        </a>
         <button
           className="cmdbar-btn"
           onClick={openMiners}

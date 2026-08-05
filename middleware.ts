@@ -22,5 +22,7 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/painel/:path*"],
+  // /extensao entra aqui pra não virar página pública com o passo a passo
+  // interno; o .zip em /public não tem segredo e fica acessível direto
+  matcher: ["/", "/painel/:path*", "/extensao"],
 };
